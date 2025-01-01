@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import argparse  # Add import for argparse
 from pathlib import Path
 from textwrap import dedent
 from typing import List, Dict, Any, Optional
@@ -21,10 +22,32 @@ console = Console()
 # 1. Configure OpenAI client and load environment variables
 # --------------------------------------------------------------------------------
 load_dotenv()  # Load environment variables from .env file
-client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com"
-)  # Configure for DeepSeek API
+
+# NEW: Argument parser for command line options
+parser = argparse.ArgumentParser(description="Select the model to use.")
+parser.add_argument(
+    "--model",
+    choices=["deepseek-chat", "gpt-4o-mini"],
+    default="gpt-4o-mini",
+    help="Choose the model to use: 'deepseek-chat' or 'gpt-4o-mini'. Default is 'gpt-4o-mini'."
+)
+args = parser.parse_args()
+
+# NEW: Set API key and model based on the selected option
+if args.model == "deepseek-chat":
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    model_name = "deepseek-chat"
+    api_url="https://api.deepseek.com"
+else:
+    api_key = os.getenv("OPENAI_API_KEY")
+    model_name = "gpt-4o-mini"
+    api_url="https://api.openai.com/v1"
+# NEW: Check if the API key is available
+if not api_key:
+    console.print(f"[red]✗[/red] API key for '{model_name}' not found. Please add it to your .env file.", style="red")
+    sys.exit(1)
+
+client = OpenAI(api_key=api_key, base_url=api_url)  # Configure for the selected API
 
 # --------------------------------------------------------------------------------
 # 2. Define our schema using Pydantic for type safety
@@ -281,7 +304,7 @@ def stream_openai_response(user_message: str):
 
     try:
         stream = client.chat.completions.create(
-            model="deepseek-chat",
+            model=model_name,  # Use the selected model
             messages=conversation_history,
             response_format={"type": "json_object"},
             max_completion_tokens=8000,
@@ -340,8 +363,11 @@ def stream_openai_response(user_message: str):
             )
 
     except Exception as e:
-        error_msg = f"DeepSeek API error: {str(e)}"
+        error_msg = f"API error: {str(e)}"
         console.print(f"\n[red]✗[/red] {error_msg}", style="red")
+        console.print("[yellow]ℹ[/yellow] Please check the API key and model configuration.", style="yellow")
+        console.print(api_url)
+        console.print(api_key)
         return AssistantResponse(
             assistant_reply=error_msg,
             files_to_create=[]
