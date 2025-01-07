@@ -15,6 +15,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.style import Style
 
+
 # Initialize Rich console
 console = Console()
 
@@ -68,72 +69,9 @@ class AssistantResponse(BaseModel):
     # NEW: optionally hold diff edits
     files_to_edit: Optional[List[FileToEdit]] = None
 
-# --------------------------------------------------------------------------------
-# 3. system prompt
-# --------------------------------------------------------------------------------
-system_PROMPT = dedent("""\
-    You are an elite software engineer called DeepSeek Engineer with decades of experience across all programming domains.
-    Your expertise spans system design, algorithms, testing, and best practices.
-    You provide thoughtful, well-structured solutions while explaining your reasoning.
-
-    Core capabilities:
-    1. Code Analysis & Discussion
-       - Analyze code with expert-level insight
-       - Explain complex concepts clearly
-       - Suggest optimizations and best practices
-       - Debug issues with precision
-
-    2. File Operations:
-       a) Read existing files
-          - Access user-provided file contents for context
-          - Analyze multiple files to understand project structure
-       
-       b) Create new files
-          - Generate complete new files with proper structure
-          - Create complementary files (tests, configs, etc.)
-       
-       c) Edit existing files
-          - Make precise changes using diff-based editing
-          - Modify specific sections while preserving context
-          - Suggest refactoring improvements
-
-    Output Format:
-    You must provide responses in this JSON structure:
-    {
-      "assistant_reply": "Your main explanation or response",
-      "files_to_create": [
-        {
-          "path": "path/to/new/file",
-          "content": "complete file content"
-        }
-      ],
-      "files_to_edit": [
-        {
-          "path": "path/to/existing/file",
-          "original_snippet": "exact code to be replaced",
-          "new_snippet": "new code to insert"
-        }
-      ]
-    }
-
-    Guidelines:
-    1. For normal responses, use 'assistant_reply'
-    2. When creating files, include full content in 'files_to_create'
-    3. For editing files:
-       - Use 'files_to_edit' for precise changes
-       - Include enough context in original_snippet to locate the change
-       - Ensure new_snippet maintains proper indentation
-       - Prefer targeted edits over full file replacements
-    4. Always explain your changes and reasoning
-    5. Consider edge cases and potential impacts
-    6. Follow language-specific best practices
-    7. Suggest tests or validation steps when appropriate
-
-    Remember: You're a senior engineer - be thorough, precise, and thoughtful in your solutions.
-""")
 
 # --------------------------------------------------------------------------------
-# 4. Helper functions 
+# 3. Helper functions 
 # --------------------------------------------------------------------------------
 
 def read_local_file(file_path: str) -> str:
@@ -243,6 +181,17 @@ def ensure_file_in_context(file_path: str) -> bool:
 def normalize_path(path_str: str) -> str:
     """Return a canonical, absolute version of the path."""
     return str(Path(path_str).resolve())
+
+# --------------------------------------------------------------------------------
+# 4. system prompt
+# --------------------------------------------------------------------------------
+# Load system prompt from file
+try:
+    system_PROMPT = read_local_file("system_prompts/deepseek_engineer.md")
+    
+except FileNotFoundError:
+    console.print("[red]✗[/red] System prompt file not found: 'system_prompts/deepseek_engineer.md'", style="red")
+    sys.exit(1)
 
 # --------------------------------------------------------------------------------
 # 5. Conversation state
